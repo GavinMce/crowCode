@@ -3,8 +3,13 @@
 // of them reflects the unified repo version -- read from shared-types since
 // it has no workspace dependencies of its own. Packages are private and
 // never published to npm; a "release" here is just a git tag + GitHub
-// Release, which changesets/action creates automatically once it sees a new
-// tag pushed by this script.
+// Release.
+//
+// changesets/action can auto-create a release from a pushed tag, but only
+// when the publish command's stdout matches its expected "New tag:
+// name@version" format (designed around per-package npm tags) -- a single
+// unified tag like "v0.1.0" doesn't match, so we create the release
+// ourselves via `gh` instead of relying on that.
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 
@@ -20,3 +25,6 @@ if (existingTags.includes(tag)) {
 execSync(`git tag ${tag}`, { stdio: 'inherit' });
 execSync(`git push origin ${tag}`, { stdio: 'inherit' });
 console.log(`Created and pushed tag ${tag}`);
+
+execSync(`gh release create ${tag} --title ${tag} --generate-notes`, { stdio: 'inherit' });
+console.log(`Created GitHub Release ${tag}`);
