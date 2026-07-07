@@ -1,0 +1,22 @@
+{
+  "name": "@crowcode/sandbox",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "dockerode": "^4.0.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.10.0",
+    "@types/dockerode": "^3.3.31",
+    "vitest": "^2.1.9"
+  }
+}

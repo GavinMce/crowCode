@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.10.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm -w typecheck
+
+      - name: Build
+        run: pnpm -w build
+
+      - name: Start MinIO (for storage integration tests)
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=crowcode \
+            -e MINIO_ROOT_PASSWORD=crowcode-dev-secret \
+            minio/minio server /data
+          timeout 30 bash -c 'until curl -sf http://localhost:9000/minio/health/live; do sleep 1; done'
+
+      - name: Test
+        run: pnpm -w test
+        env:
+          S3_ENDPOINT: http://localhost:9000
+          S3_BUCKET: crowcode-dev
+          S3_REGION: us-east-1
+          S3_ACCESS_KEY_ID: crowcode
+          S3_SECRET_ACCESS_KEY: crowcode-dev-secret
+
+      - name: Stop MinIO
+        if: always()
+        run: docker rm -f minio

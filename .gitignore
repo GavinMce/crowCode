@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+out/
+*.log
+.env
+.env.*
+!.env.example
+.turbo/
+.DS_Store
+*.tsbuildinfo
+apps/electron/out/
+apps/control-plane/*.sqlite
+apps/control-plane/*.sqlite-journal
+.vite/
