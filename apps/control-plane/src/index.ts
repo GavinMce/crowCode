@@ -15,6 +15,12 @@ const DB_PATH = process.env.DB_PATH ?? './control-plane.sqlite';
 const AGENT_RUNTIME_IMAGE = process.env.AGENT_RUNTIME_IMAGE ?? 'crowcode/agent-runtime-base:1';
 const SELF_WS_URL_FOR_RUNTIME = process.env.SELF_WS_URL_FOR_RUNTIME ?? `ws://host.docker.internal:${PORT}/ws/agent-runtime`;
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing required env var ${name}`);
+  return value;
+}
+
 async function main() {
   const app = Fastify({ logger: true });
   await app.register(fastifyCors, {
@@ -35,6 +41,7 @@ async function main() {
     sandboxProvider,
     agentRuntimeImage: AGENT_RUNTIME_IMAGE,
     controlPlaneWsUrlForRuntime: SELF_WS_URL_FOR_RUNTIME,
+    anthropicApiKey: requireEnv('ANTHROPIC_API_KEY'),
     s3: {
       bucket: process.env.S3_BUCKET ?? 'crowcode-dev',
       region: process.env.S3_REGION,

@@ -10,6 +10,7 @@ export interface ProjectsRouteConfig {
   sandboxProvider: SandboxProvider;
   agentRuntimeImage: string;
   controlPlaneWsUrlForRuntime: string;
+  anthropicApiKey: string;
   s3: {
     bucket: string;
     region?: string;
@@ -60,6 +61,7 @@ export function registerProjectRoutes(app: FastifyInstance, config: ProjectsRout
         WORKING_BRANCH: project.workingBranch,
         CONTROL_PLANE_WS_URL: config.controlPlaneWsUrlForRuntime,
         GIT_CREDENTIAL: body.gitCredential,
+        ANTHROPIC_API_KEY: config.anthropicApiKey,
         S3_BUCKET: config.s3.bucket,
         S3_REGION: config.s3.region ?? '',
         S3_ENDPOINT: config.s3.endpoint ?? '',
