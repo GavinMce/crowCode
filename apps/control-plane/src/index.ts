@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import fastifyCors from '@fastify/cors';
 import fastifyWebsocket from '@fastify/websocket';
 import { DockerSandboxProvider } from '@crowcode/sandbox';
 import {
@@ -16,6 +17,9 @@ const SELF_WS_URL_FOR_RUNTIME = process.env.SELF_WS_URL_FOR_RUNTIME ?? `ws://hos
 
 async function main() {
   const app = Fastify({ logger: true });
+  await app.register(fastifyCors, {
+    origin: process.env.ELECTRON_RENDERER_URL_ORIGIN ?? 'http://localhost:5173',
+  });
   await app.register(fastifyWebsocket);
 
   const db = new Db(DB_PATH);
