@@ -15,3 +15,41 @@ export const subagents: Record<string, AgentDefinition> = {
     model: 'haiku',
   },
 };
+
+interface ManagedAgentSpec {
+  name: string;
+  description: string;
+  prompt: string;
+  model?: string;
+  tools?: string[];
+}
+
+/**
+ * Merges the hardcoded roster above with project-scoped agents managed
+ * through crowCode's UI (control-plane injects them as MANAGED_AGENTS_JSON
+ * at session-sandbox creation). Managed agents win on name collision.
+ * Malformed/missing input falls back to the hardcoded roster alone.
+ */
+export function mergeAgents(managedAgentsJson: string | undefined): Record<string, AgentDefinition> {
+  const merged: Record<string, AgentDefinition> = { ...subagents };
+  if (!managedAgentsJson) return merged;
+
+  let managed: unknown;
+  try {
+    managed = JSON.parse(managedAgentsJson);
+  } catch {
+    return merged;
+  }
+  if (!Array.isArray(managed)) return merged;
+
+  for (const entry of managed as ManagedAgentSpec[]) {
+    if (!entry?.name || !entry.description || !entry.prompt) continue;
+    merged[entry.name] = {
+      description: entry.description,
+      prompt: entry.prompt,
+      model: entry.model,
+      tools: entry.tools,
+    };
+  }
+  return merged;
+}

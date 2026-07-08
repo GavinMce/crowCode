@@ -13,6 +13,11 @@ export const LifecycleEventSchema = z.discriminatedUnion('type', [
     message: z.string(),
   }),
   z.object({ type: z.literal('memory_flushed'), key: z.string() }),
+  z.object({
+    type: z.literal('diff_snapshot'),
+    /** Unified diff of `defaultBranch...workingBranch`, recomputed after every commit. */
+    diff: z.string(),
+  }),
 ]);
 export type LifecycleEvent = z.infer<typeof LifecycleEventSchema>;
 
@@ -36,10 +41,13 @@ export type SessionEventPayload = z.infer<typeof SessionEventPayloadSchema>;
 
 /**
  * Envelope relayed verbatim agent-runtime -> control-plane -> Electron.
+ * `sdkSessionId` is the Claude Agent SDK's own resumable session id -- not
+ * to be confused with crowCode's session (chat thread/branch/sandbox),
+ * which the WS connection is already scoped to via `subscribe`.
  */
 export const SessionEventSchema = z.object({
   projectId: z.string().uuid(),
-  sessionId: z.string(),
+  sdkSessionId: z.string(),
   timestamp: z.string().datetime(),
   payload: SessionEventPayloadSchema,
 });

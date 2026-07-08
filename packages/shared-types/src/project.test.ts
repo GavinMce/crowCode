@@ -8,7 +8,6 @@ describe('ProjectSchema', () => {
       name: 'crowcode',
       repoUrl: 'https://github.com/example/repo.git',
       defaultBranch: 'main',
-      workingBranch: 'crowcode/ab12cd34',
       image: 'crowcode/agent-runtime-base:1',
       agentRoster: [{ name: 'echo-agent', description: 'trivial' }],
       createdAt: new Date().toISOString(),
@@ -21,7 +20,6 @@ describe('ProjectSchema', () => {
       id: 'not-a-uuid',
       name: 'crowcode',
       repoUrl: 'https://github.com/example/repo.git',
-      workingBranch: 'crowcode/ab12cd34',
       createdAt: new Date().toISOString(),
     });
     expect(result.success).toBe(false);
@@ -32,7 +30,6 @@ describe('ProjectSchema', () => {
       id: '123e4567-e89b-12d3-a456-426614174000',
       name: 'crowcode',
       repoUrl: 'https://github.com/example/repo.git',
-      workingBranch: 'crowcode/ab12cd34',
       createdAt: new Date().toISOString(),
     });
     expect(result.defaultBranch).toBe('main');

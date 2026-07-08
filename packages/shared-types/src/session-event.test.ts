@@ -4,7 +4,7 @@ import { SessionEventSchema } from './session-event.js';
 describe('SessionEventSchema', () => {
   const base = {
     projectId: '123e4567-e89b-12d3-a456-426614174000',
-    sessionId: 'sdk-session-1',
+    sdkSessionId: 'sdk-session-1',
     timestamp: new Date().toISOString(),
   };
 
@@ -12,6 +12,14 @@ describe('SessionEventSchema', () => {
     const result = SessionEventSchema.safeParse({
       ...base,
       payload: { type: 'git_commit_created', sha: 'abc123', branch: 'crowcode/x', message: 'fix' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a diff_snapshot payload', () => {
+    const result = SessionEventSchema.safeParse({
+      ...base,
+      payload: { type: 'diff_snapshot', diff: '--- a/foo.ts\n+++ b/foo.ts\n' },
     });
     expect(result.success).toBe(true);
   });
