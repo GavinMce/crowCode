@@ -63,6 +63,9 @@ importers:
       '@crowcode/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
+      '@crowcode/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@fastify/cors':
         specifier: ^11.2.0
         version: 11.2.0

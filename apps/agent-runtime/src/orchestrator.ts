@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { query, type SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { StorageProvider } from '@crowcode/storage';
-import type { SessionEventPayload } from '@crowcode/shared-types';
-import { mergeAgents } from './agents/definitions.js';
+import type { AgentStatus, SessionEventPayload } from '@crowcode/shared-types';
+import { buildAgentMcpServer, type ManagedAgentWithId } from './agent-tools.js';
+import { subagents } from './agents/definitions.js';
 import { MEMORY_DIR } from './memory-sync.js';
 import { createS3SessionStore } from './s3-session-store.js';
 
@@ -25,6 +26,7 @@ export interface OrchestratorDeps {
   /** JSON-encoded SdkPluginConfig[] from control-plane's integrations. */
   pluginPathsJson?: string;
   onEvent: (payload: SessionEventPayload) => void | Promise<void>;
+  onAgentStatus: (agentId: string, status: AgentStatus) => void;
 }
 
 /** Parses a JSON env var, falling back to `fallback` on missing/malformed input. */
@@ -65,11 +67,19 @@ export async function runOrchestratorTurn(
   const sessionStore = createS3SessionStore(deps.storage);
   let sdkSessionId: string | undefined;
 
+  const managedAgents = parseJsonEnv<ManagedAgentWithId[]>(deps.managedAgentsJson, []);
+  const agentMcpServer = buildAgentMcpServer(managedAgents, {
+    storage: deps.storage,
+    cwd: deps.cwd,
+    onAgentStatus: deps.onAgentStatus,
+    onAgentEvent: (_agentName, payload) => deps.onEvent(payload),
+  });
+
   const stream = query({
     prompt: userMessage,
     options: {
       cwd: deps.cwd,
-      agents: mergeAgents(deps.managedAgentsJson),
+      agents: subagents,
       // Explicit rather than relying on the SDK's default -- this is what
       // makes repo-native `.claude/agents/*.md` in the checked-out repo
       // discoverable, same convention the CLI itself uses.
@@ -79,12 +89,21 @@ export async function runOrchestratorTurn(
       // the agent reported being blocked before this was added).
       additionalDirectories: [MEMORY_DIR],
       systemPrompt: { type: 'preset', preset: 'claude_code', append: MEMORY_SYSTEM_PROMPT_APPEND },
-      mcpServers: parseJsonEnv(deps.mcpServersJson, {}),
+      mcpServers: {
+        ...parseJsonEnv(deps.mcpServersJson, {}),
+        ...(agentMcpServer ? { 'crowcode-agents': agentMcpServer } : {}),
+      },
       plugins: parseJsonEnv(deps.pluginPathsJson, []),
       sessionStore,
       sessionStoreFlush: 'eager',
       resume: turnOptions.resumeSessionId,
-      permissionMode: 'acceptEdits',
+      // Fully unattended: no human is present in this sandboxed container
+      // to answer a permission prompt. 'acceptEdits' alone only covers file
+      // edits -- MCP tool calls (the new agent-delegation mechanism) still
+      // blocked on approval under it, confirmed by hand: the orchestrator
+      // reported needing permission before this was added.
+      permissionMode: 'bypassPermissions',
+      allowDangerouslySkipPermissions: true,
     },
   });
 

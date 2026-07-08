@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import fastifyCors from '@fastify/cors';
 import fastifyWebsocket from '@fastify/websocket';
 import { DockerSandboxProvider } from '@crowcode/sandbox';
+import { S3Provider } from '@crowcode/storage';
 import {
   AgentRuntimeToControlPlaneMessageSchema,
   ElectronToControlPlaneMessageSchema,
@@ -39,12 +40,38 @@ async function main() {
   });
   const relay = new WsRelay();
 
+  // S3_ENDPOINT is deliberately host.docker.internal-shaped -- it gets
+  // injected into sandbox containers (see sessions.ts), which need that
+  // hostname to reach the host's MinIO. control-plane itself runs on the
+  // host directly, where host.docker.internal doesn't resolve, so its own
+  // direct StorageProvider needs the host-perspective address instead.
+  const s3Config = {
+    bucket: process.env.S3_BUCKET ?? 'crowcode-dev',
+    region: process.env.S3_REGION,
+    endpoint: process.env.S3_ENDPOINT,
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE,
+    accessKeyId: process.env.S3_ACCESS_KEY_ID,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+  };
+  const s3EndpointForControlPlane =
+    process.env.S3_ENDPOINT_FOR_CONTROL_PLANE ?? s3Config.endpoint?.replace('host.docker.internal', 'localhost');
+  const storage = new S3Provider({
+    bucket: s3Config.bucket,
+    region: s3Config.region,
+    endpoint: s3EndpointForControlPlane,
+    forcePathStyle: s3Config.forcePathStyle === 'true',
+    credentials:
+      s3Config.accessKeyId && s3Config.secretAccessKey
+        ? { accessKeyId: s3Config.accessKeyId, secretAccessKey: s3Config.secretAccessKey }
+        : undefined,
+  });
+
   registerProjectRoutes(app, {
     db,
     agentRuntimeImage: AGENT_RUNTIME_IMAGE,
   });
 
-  registerAgentRoutes(app, { db });
+  registerAgentRoutes(app, { db, storage });
   registerIntegrationRoutes(app, { db });
 
   registerSessionRoutes(app, {
@@ -52,14 +79,7 @@ async function main() {
     sandboxProvider,
     controlPlaneWsUrlForRuntime: SELF_WS_URL_FOR_RUNTIME,
     anthropicApiKey: requireEnv('ANTHROPIC_API_KEY'),
-    s3: {
-      bucket: process.env.S3_BUCKET ?? 'crowcode-dev',
-      region: process.env.S3_REGION,
-      endpoint: process.env.S3_ENDPOINT,
-      forcePathStyle: process.env.S3_FORCE_PATH_STYLE,
-      accessKeyId: process.env.S3_ACCESS_KEY_ID,
-      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
-    },
+    s3: s3Config,
   });
 
   app.register(async (instance) => {
@@ -73,6 +93,8 @@ async function main() {
         if (message.type === 'subscribe') {
           subscribedSessionId = message.sessionId;
           relay.subscribeElectron(message.sessionId, socket);
+        } else if (message.type === 'subscribe_project') {
+          relay.subscribeProject(message.projectId, socket);
         } else {
           relay.handleElectronMessage(message.sessionId, message);
         }

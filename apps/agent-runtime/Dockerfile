@@ -14,6 +14,11 @@ RUN pnpm --filter @crowcode/agent-runtime deploy --prod --legacy /out
 FROM base AS runtime
 WORKDIR /app
 ENV WORK_DIR=/workspace/repo
-RUN mkdir -p /workspace/repo
-COPY --from=build /out ./
+# The `claude` CLI refuses --dangerously-skip-permissions (permissionMode:
+# 'bypassPermissions') when run as root, for its own safety reasons -- runs
+# as the `node` user (built into the base image) instead, which is also
+# just general Docker hygiene regardless of that specific requirement.
+RUN mkdir -p /workspace/repo && chown -R node:node /workspace
+COPY --from=build --chown=node:node /out ./
+USER node
 CMD ["node", "dist/index.js"]

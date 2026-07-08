@@ -110,6 +110,9 @@ async function main() {
           managedAgentsJson: MANAGED_AGENTS_JSON,
           mcpServersJson: MCP_SERVERS_JSON,
           pluginPathsJson: PLUGIN_PATHS_JSON,
+          onAgentStatus: (agentId, status) => {
+            send({ type: 'agent_status', projectId, agentId, status });
+          },
           onEvent: (payload) => {
             send({
               type: 'session_event',

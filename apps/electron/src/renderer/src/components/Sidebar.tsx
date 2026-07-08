@@ -1,13 +1,18 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import type { AgentStatus, ManagedAgent } from '@crowcode/shared-types';
 import type { NewProjectForm, ProjectRow, SessionRow } from '../types.js';
 
 interface SidebarProps {
   projects: ProjectRow[];
   sessions: SessionRow[];
+  agents: ManagedAgent[];
+  agentStatuses: Record<string, AgentStatus>;
   selectedProjectId: string | null;
   selectedSessionId: string | null;
+  selectedAgentId: string | null;
   onSelectProject: (id: string) => void;
   onSelectSession: (id: string) => void;
+  onSelectAgent: (id: string) => void;
   onCreateProject: (form: NewProjectForm) => Promise<boolean>;
   onCreateSession: (title: string) => Promise<boolean>;
   onOpenProjectSettings: (projectId: string) => void;
@@ -64,10 +69,14 @@ function NewSessionRow({ onCreateSession }: { onCreateSession: (title: string) =
 export function Sidebar({
   projects,
   sessions,
+  agents,
+  agentStatuses,
   selectedProjectId,
   selectedSessionId,
+  selectedAgentId,
   onSelectProject,
   onSelectSession,
+  onSelectAgent,
   onCreateProject,
   onCreateSession,
   onOpenProjectSettings,
@@ -180,6 +189,24 @@ export function Sidebar({
                     </button>
                   ))}
                   <NewSessionRow onCreateSession={onCreateSession} />
+                </div>
+              )}
+              {project.id === selectedProjectId && agents.length > 0 && (
+                <div className="sidebar-agents">
+                  <div className="sidebar-subheading">Agents</div>
+                  {agents.map((agent) => (
+                    <button
+                      key={agent.id}
+                      type="button"
+                      className={`sidebar-agent${agent.id === selectedAgentId ? ' sidebar-agent--active' : ''}`}
+                      onClick={() => onSelectAgent(agent.id)}
+                    >
+                      <span
+                        className={`agent-status-dot agent-status-dot--${agentStatuses[agent.id] ?? 'idle'}`}
+                      />
+                      {agent.name}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
