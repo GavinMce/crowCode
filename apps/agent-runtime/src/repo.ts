@@ -1,3 +1,4 @@
+// live session verification
 import { simpleGit } from 'simple-git';
 
 export interface RepoConfig {
