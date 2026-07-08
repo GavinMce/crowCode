@@ -3,7 +3,16 @@ import { query, type SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { StorageProvider } from '@crowcode/storage';
 import type { SessionEventPayload } from '@crowcode/shared-types';
 import { mergeAgents } from './agents/definitions.js';
+import { MEMORY_DIR } from './memory-sync.js';
 import { createS3SessionStore } from './s3-session-store.js';
+
+const MEMORY_SYSTEM_PROMPT_APPEND =
+  `You have a persistent memory directory at ${MEMORY_DIR} (outside the repo, ` +
+  'not version-controlled) for durable facts, decisions, and preferences that ' +
+  'should survive across sessions on this project -- it is synced across ' +
+  'sessions automatically. When asked to remember something, or when you learn ' +
+  'an important durable fact worth keeping, read and update markdown files ' +
+  'there with your normal file tools. Never store secrets/credentials there.';
 
 export interface OrchestratorDeps {
   storage: StorageProvider;
@@ -65,6 +74,11 @@ export async function runOrchestratorTurn(
       // makes repo-native `.claude/agents/*.md` in the checked-out repo
       // discoverable, same convention the CLI itself uses.
       settingSources: ['user', 'project', 'local'],
+      // The SDK sandboxes tool access to cwd by default -- without this,
+      // Read/Write/Edit can't reach MEMORY_DIR at all (confirmed by hand:
+      // the agent reported being blocked before this was added).
+      additionalDirectories: [MEMORY_DIR],
+      systemPrompt: { type: 'preset', preset: 'claude_code', append: MEMORY_SYSTEM_PROMPT_APPEND },
       mcpServers: parseJsonEnv(deps.mcpServersJson, {}),
       plugins: parseJsonEnv(deps.pluginPathsJson, []),
       sessionStore,

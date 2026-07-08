@@ -52,27 +52,29 @@ function AgentsTab({ config, projectId }: { config: CrowcodeConfig; projectId: s
   return (
     <>
       <p className="settings-section-hint">
-        Available to the orchestrator via the Task tool in every new session for this project, alongside any
-        repo-native agents defined in <code>.claude/agents/*.md</code>.
+        Managed agents are available to the orchestrator via the Task tool in every new session for this project,
+        alongside any repo-native agents defined in <code>.claude/agents/*.md</code>.
       </p>
 
-      {agents.length === 0 ? (
-        <div className="sidebar-empty">No managed agents yet</div>
-      ) : (
-        <ul className="agent-list">
-          {agents.map((agent) => (
-            <li key={agent.id} className="agent-list-item">
-              <div>
-                <span className="agent-list-name">{agent.name}</span>
-                <span className="agent-list-description">{agent.description}</span>
-              </div>
-              <button type="button" className="btn-secondary" onClick={() => handleDelete(agent.id)}>
-                Delete
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="agent-list">
+        <li className="agent-list-item agent-list-item--pinned">
+          <div>
+            <span className="agent-list-name">Orchestrator</span>
+            <span className="agent-list-description">Coordinates work and delegates to other agents</span>
+          </div>
+        </li>
+        {agents.map((agent) => (
+          <li key={agent.id} className="agent-list-item">
+            <div>
+              <span className="agent-list-name">{agent.name}</span>
+              <span className="agent-list-description">{agent.description}</span>
+            </div>
+            <button type="button" className="btn-secondary" onClick={() => handleDelete(agent.id)}>
+              Delete
+            </button>
+          </li>
+        ))}
+      </ul>
 
       <form className="agent-form" onSubmit={handleSubmit}>
         <input

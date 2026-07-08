@@ -176,6 +176,10 @@ textarea {
   color: var(--danger);
 }
 
+.meta-turn--compact {
+  color: #9a6700;
+}
+
 .thinking-block {
   margin: 8px 0;
   color: var(--text-secondary);
@@ -852,6 +856,11 @@ textarea {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 10px;
+}
+
+.agent-list-item--pinned {
+  background: var(--bg-sidebar);
+  border-style: dashed;
 }
 
 .agent-list-name {

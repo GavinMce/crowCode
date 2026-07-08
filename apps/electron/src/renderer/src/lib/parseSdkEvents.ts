@@ -34,7 +34,7 @@ export interface AssistantTurn {
 export interface MetaTurn {
   kind: 'meta';
   id: string;
-  subtype: 'init' | 'result' | 'error';
+  subtype: 'init' | 'result' | 'error' | 'compact';
   text: string;
 }
 
@@ -77,6 +77,17 @@ interface RawSystemInitMessage {
   cwd?: string;
 }
 
+interface RawCompactBoundaryMessage {
+  type: 'system';
+  subtype: 'compact_boundary';
+  uuid?: string;
+  compact_metadata?: {
+    trigger?: 'manual' | 'auto';
+    pre_tokens?: number;
+    post_tokens?: number;
+  };
+}
+
 interface RawResultMessage {
   type: 'result';
   uuid?: string;
@@ -89,6 +100,7 @@ type RawSdkMessage =
   | RawAssistantMessage
   | RawUserMessage
   | RawSystemInitMessage
+  | RawCompactBoundaryMessage
   | RawResultMessage
   | { type: string };
 
@@ -189,6 +201,20 @@ export function parseSdkEvents(events: SdkMessageEvent[]): Turn[] {
         id: sys.uuid ?? fallbackId(),
         subtype: 'init',
         text: `Session started · ${sys.model ?? 'unknown model'}${sys.cwd ? ` · ${sys.cwd}` : ''}`,
+      });
+    } else if (raw.type === 'system' && (raw as RawCompactBoundaryMessage).subtype === 'compact_boundary') {
+      const compact = raw as RawCompactBoundaryMessage;
+      const pre = compact.compact_metadata?.pre_tokens;
+      const post = compact.compact_metadata?.post_tokens;
+      const tokenSummary =
+        typeof pre === 'number' && typeof post === 'number'
+          ? ` · ${pre.toLocaleString()} → ${post.toLocaleString()} tokens`
+          : '';
+      topLevel.push({
+        kind: 'meta',
+        id: compact.uuid ?? fallbackId(),
+        subtype: 'compact',
+        text: `Context compacted${tokenSummary}`,
       });
     } else if (raw.type === 'result') {
       const result = raw as RawResultMessage;

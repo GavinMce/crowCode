@@ -1,3 +1,6 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import WebSocket from 'ws';
 import { S3Provider } from '@crowcode/storage';
 import type {
@@ -5,7 +8,29 @@ import type {
   ControlPlaneToAgentRuntimeMessage,
 } from '@crowcode/shared-types';
 import { ensureRepoCheckedOut, commitAndPush, computeDiff } from './repo.js';
+import { MEMORY_DIR, downloadMemory, uploadMemory } from './memory-sync.js';
 import { newProjectKey, runOrchestratorTurn } from './orchestrator.js';
+
+/**
+ * Enables the SDK's own native auto-memory feature (part of the default
+ * `claude_code` system-prompt preset) and points it at MEMORY_DIR. This is
+ * a `.claude/settings.json` (`Settings`) concern, not a query() option --
+ * picked up via `settingSources: ['user', ...]` in orchestrator.ts.
+ */
+async function configureAutoMemory(): Promise<void> {
+  const settingsPath = join(homedir(), '.claude', 'settings.json');
+  let existing: Record<string, unknown> = {};
+  try {
+    existing = JSON.parse(await readFile(settingsPath, 'utf8'));
+  } catch {
+    // No existing settings file (or unreadable) -- start fresh.
+  }
+  await mkdir(join(homedir(), '.claude'), { recursive: true });
+  await writeFile(
+    settingsPath,
+    JSON.stringify({ ...existing, autoMemoryEnabled: true, autoMemoryDirectory: MEMORY_DIR }, null, 2),
+  );
+}
 
 const {
   CONTROL_PLANE_WS_URL,
@@ -60,6 +85,8 @@ async function main() {
   });
 
   const projectKey = newProjectKey(projectId);
+  await configureAutoMemory();
+  await downloadMemory(storage, projectKey, MEMORY_DIR);
   let sdkSessionId: string | undefined;
 
   const ws = new WebSocket(controlPlaneUrl);
@@ -116,6 +143,19 @@ async function main() {
                 sdkSessionId: sdkSessionId ?? 'pending',
                 timestamp: new Date().toISOString(),
                 payload: { type: 'diff_snapshot', diff },
+              },
+            });
+          }
+
+          const uploadedMemoryFiles = await uploadMemory(storage, projectKey, MEMORY_DIR).catch(() => []);
+          for (const key of uploadedMemoryFiles) {
+            send({
+              type: 'session_event',
+              event: {
+                projectId,
+                sdkSessionId: sdkSessionId ?? 'pending',
+                timestamp: new Date().toISOString(),
+                payload: { type: 'memory_flushed', key },
               },
             });
           }
