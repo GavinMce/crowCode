@@ -25,6 +25,7 @@ export type ControlPlaneToElectronMessage = z.infer<typeof ControlPlaneToElectro
 export const AgentRuntimeToControlPlaneMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('register'), projectId: z.string().uuid(), sandboxId: z.string() }),
   z.object({ type: z.literal('session_event'), event: SessionEventSchema }),
+  z.object({ type: z.literal('error'), message: z.string() }),
 ]);
 export type AgentRuntimeToControlPlaneMessage = z.infer<typeof AgentRuntimeToControlPlaneMessageSchema>;
 

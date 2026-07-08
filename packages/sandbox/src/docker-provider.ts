@@ -55,9 +55,10 @@ export class DockerSandboxProvider implements SandboxProvider {
       Image: spec.image,
       Env: env,
       Labels: { 'crowcode.projectId': spec.projectId },
-      HostConfig: spec.volume
-        ? { Binds: [`${spec.volume.name}:${spec.volume.mountPath}`] }
-        : undefined,
+      HostConfig: {
+        ExtraHosts: ['host.docker.internal:host-gateway'],
+        ...(spec.volume ? { Binds: [`${spec.volume.name}:${spec.volume.mountPath}`] } : {}),
+      },
     });
     return new DockerSandboxHandle(container.id, this.docker);
   }

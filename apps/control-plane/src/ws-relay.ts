@@ -63,6 +63,8 @@ export class WsRelay {
   handleAgentRuntimeMessage(projectId: string, message: AgentRuntimeToControlPlaneMessage): void {
     if (message.type === 'session_event') {
       this.sendToElectron(projectId, { type: 'session_event', event: message.event });
+    } else if (message.type === 'error') {
+      this.sendToElectron(projectId, { type: 'error', message: message.message });
     }
   }
 }

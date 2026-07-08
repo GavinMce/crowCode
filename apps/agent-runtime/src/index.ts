@@ -90,9 +90,14 @@ async function main() {
         },
         message.text,
         { resumeSessionId: message.sessionId ?? sdkSessionId },
-      ).then((result) => {
-        if (result.sdkSessionId) sdkSessionId = result.sdkSessionId;
-      });
+      ).then(
+        (result) => {
+          if (result.sdkSessionId) sdkSessionId = result.sdkSessionId;
+        },
+        (err: unknown) => {
+          send({ type: 'error', message: err instanceof Error ? err.message : String(err) });
+        },
+      );
     }
   });
 
