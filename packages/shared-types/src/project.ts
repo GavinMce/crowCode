@@ -12,7 +12,6 @@ export const ProjectSchema = z.object({
   name: z.string().min(1),
   repoUrl: z.string().url(),
   defaultBranch: z.string().default('main'),
-  workingBranch: z.string(),
   image: z.string().default('crowcode/agent-runtime-base:1'),
   agentRoster: z.array(AgentRosterEntrySchema).default([]),
   createdAt: z.string().datetime(),

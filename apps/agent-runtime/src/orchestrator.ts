@@ -2,14 +2,30 @@ import { randomUUID } from 'node:crypto';
 import { query, type SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { StorageProvider } from '@crowcode/storage';
 import type { SessionEventPayload } from '@crowcode/shared-types';
-import { subagents } from './agents/definitions.js';
+import { mergeAgents } from './agents/definitions.js';
 import { createS3SessionStore } from './s3-session-store.js';
 
 export interface OrchestratorDeps {
   storage: StorageProvider;
   cwd: string;
   projectKey: string;
+  /** JSON-encoded managed agents from control-plane; see agents/definitions.ts mergeAgents. */
+  managedAgentsJson?: string;
+  /** JSON-encoded Record<string, McpServerConfig> from control-plane's integrations. */
+  mcpServersJson?: string;
+  /** JSON-encoded SdkPluginConfig[] from control-plane's integrations. */
+  pluginPathsJson?: string;
   onEvent: (payload: SessionEventPayload) => void | Promise<void>;
+}
+
+/** Parses a JSON env var, falling back to `fallback` on missing/malformed input. */
+function parseJsonEnv<T>(json: string | undefined, fallback: T): T {
+  if (!json) return fallback;
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return fallback;
+  }
 }
 
 export interface OrchestratorTurnOptions {
@@ -44,7 +60,13 @@ export async function runOrchestratorTurn(
     prompt: userMessage,
     options: {
       cwd: deps.cwd,
-      agents: subagents,
+      agents: mergeAgents(deps.managedAgentsJson),
+      // Explicit rather than relying on the SDK's default -- this is what
+      // makes repo-native `.claude/agents/*.md` in the checked-out repo
+      // discoverable, same convention the CLI itself uses.
+      settingSources: ['user', 'project', 'local'],
+      mcpServers: parseJsonEnv(deps.mcpServersJson, {}),
+      plugins: parseJsonEnv(deps.pluginPathsJson, []),
       sessionStore,
       sessionStoreFlush: 'eager',
       resume: turnOptions.resumeSessionId,

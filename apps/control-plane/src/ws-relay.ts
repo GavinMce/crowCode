@@ -7,64 +7,64 @@ import type {
 } from '@crowcode/shared-types';
 
 /**
- * In-memory relay keyed by projectId. Agent-runtime dials out to us (one
- * socket per running sandbox); any number of Electron clients can subscribe
- * to the same project. Swap for Redis pub/sub only if control-plane needs to
- * run as more than one instance -- not needed for v1.
+ * In-memory relay keyed by crowCode sessionId (one sandbox container per
+ * session). Agent-runtime dials out to us (one socket per running sandbox);
+ * any number of Electron clients can subscribe to the same session. Swap for
+ * Redis pub/sub only if control-plane needs to run as more than one instance
+ * -- not needed for v1.
  */
 export class WsRelay {
   private readonly electronSockets = new Map<string, Set<WebSocket>>();
   private readonly runtimeSockets = new Map<string, WebSocket>();
 
-  subscribeElectron(projectId: string, socket: WebSocket): void {
-    const set = this.electronSockets.get(projectId) ?? new Set();
+  subscribeElectron(sessionId: string, socket: WebSocket): void {
+    const set = this.electronSockets.get(sessionId) ?? new Set();
     set.add(socket);
-    this.electronSockets.set(projectId, set);
+    this.electronSockets.set(sessionId, set);
     socket.on('close', () => set.delete(socket));
   }
 
-  registerAgentRuntime(projectId: string, socket: WebSocket): void {
-    this.runtimeSockets.set(projectId, socket);
+  registerAgentRuntime(sessionId: string, socket: WebSocket): void {
+    this.runtimeSockets.set(sessionId, socket);
     socket.on('close', () => {
-      if (this.runtimeSockets.get(projectId) === socket) this.runtimeSockets.delete(projectId);
+      if (this.runtimeSockets.get(sessionId) === socket) this.runtimeSockets.delete(sessionId);
     });
   }
 
-  sendToElectron(projectId: string, message: ControlPlaneToElectronMessage): void {
+  sendToElectron(sessionId: string, message: ControlPlaneToElectronMessage): void {
     const payload = JSON.stringify(message);
-    for (const socket of this.electronSockets.get(projectId) ?? []) {
+    for (const socket of this.electronSockets.get(sessionId) ?? []) {
       socket.send(payload);
     }
   }
 
-  sendToAgentRuntime(projectId: string, message: ControlPlaneToAgentRuntimeMessage): boolean {
-    const socket = this.runtimeSockets.get(projectId);
+  sendToAgentRuntime(sessionId: string, message: ControlPlaneToAgentRuntimeMessage): boolean {
+    const socket = this.runtimeSockets.get(sessionId);
     if (!socket) return false;
     socket.send(JSON.stringify(message));
     return true;
   }
 
-  handleElectronMessage(projectId: string, message: ElectronToControlPlaneMessage): void {
+  handleElectronMessage(sessionId: string, message: ElectronToControlPlaneMessage): void {
     if (message.type === 'user_message') {
-      const delivered = this.sendToAgentRuntime(projectId, {
+      const delivered = this.sendToAgentRuntime(sessionId, {
         type: 'user_message',
-        sessionId: message.sessionId,
         text: message.text,
       });
       if (!delivered) {
-        this.sendToElectron(projectId, {
+        this.sendToElectron(sessionId, {
           type: 'error',
-          message: `No running sandbox for project ${projectId}`,
+          message: `No running sandbox for session ${sessionId}`,
         });
       }
     }
   }
 
-  handleAgentRuntimeMessage(projectId: string, message: AgentRuntimeToControlPlaneMessage): void {
+  handleAgentRuntimeMessage(sessionId: string, message: AgentRuntimeToControlPlaneMessage): void {
     if (message.type === 'session_event') {
-      this.sendToElectron(projectId, { type: 'session_event', event: message.event });
+      this.sendToElectron(sessionId, { type: 'session_event', event: message.event });
     } else if (message.type === 'error') {
-      this.sendToElectron(projectId, { type: 'error', message: message.message });
+      this.sendToElectron(sessionId, { type: 'error', message: message.message });
     }
   }
 }

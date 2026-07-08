@@ -1,28 +1,86 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { NewProjectForm, ProjectRow } from '../types.js';
+import type { NewProjectForm, ProjectRow, SessionRow } from '../types.js';
 
 interface SidebarProps {
   projects: ProjectRow[];
+  sessions: SessionRow[];
   selectedProjectId: string | null;
+  selectedSessionId: string | null;
   onSelectProject: (id: string) => void;
+  onSelectSession: (id: string) => void;
   onCreateProject: (form: NewProjectForm) => Promise<boolean>;
+  onCreateSession: (title: string) => Promise<boolean>;
+  onOpenProjectSettings: (projectId: string) => void;
 }
 
 const emptyForm: NewProjectForm = { name: '', repoUrl: '', gitCredential: '' };
 
-export function Sidebar({ projects, selectedProjectId, onSelectProject, onCreateProject }: SidebarProps) {
-  const [showForm, setShowForm] = useState(false);
+function NewSessionRow({ onCreateSession }: { onCreateSession: (title: string) => Promise<boolean> }) {
+  const [active, setActive] = useState(false);
+  const [title, setTitle] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  if (!active) {
+    return (
+      <button type="button" className="btn-new-session" onClick={() => setActive(true)}>
+        + New session
+      </button>
+    );
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!title.trim() || submitting) return;
+    setSubmitting(true);
+    const ok = await onCreateSession(title.trim());
+    setSubmitting(false);
+    if (ok) {
+      setTitle('');
+      setActive(false);
+    }
+  }
+
+  return (
+    <form className="new-session-form" onSubmit={handleSubmit}>
+      <input
+        className="sidebar-input"
+        placeholder="Session title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        autoFocus
+      />
+      <div className="new-project-form-actions">
+        <button type="button" className="btn-secondary" onClick={() => setActive(false)}>
+          Cancel
+        </button>
+        <button type="submit" className="btn-primary" disabled={submitting}>
+          {submitting ? 'Starting…' : 'Start'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export function Sidebar({
+  projects,
+  sessions,
+  selectedProjectId,
+  selectedSessionId,
+  onSelectProject,
+  onSelectSession,
+  onCreateProject,
+  onCreateSession,
+  onOpenProjectSettings,
+}: SidebarProps) {
+  const [showProjectForm, setShowProjectForm] = useState(false);
   const [form, setForm] = useState<NewProjectForm>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
 
-  // Once projects load, default to the list view unless the user has
-  // already started filling out the form. Projects arrive asynchronously
-  // (config fetch -> GET /projects), so this can't be an initial-state check.
   useEffect(() => {
     if (projects.length === 0) {
-      setShowForm(true);
+      setShowProjectForm(true);
     } else {
-      setShowForm((prev) => (form.name || form.repoUrl || form.gitCredential ? prev : false));
+      setShowProjectForm((prev) => (form.name || form.repoUrl || form.gitCredential ? prev : false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects.length]);
@@ -35,7 +93,7 @@ export function Sidebar({ projects, selectedProjectId, onSelectProject, onCreate
     setSubmitting(false);
     if (ok) {
       setForm(emptyForm);
-      setShowForm(false);
+      setShowProjectForm(false);
     }
   }
 
@@ -46,7 +104,7 @@ export function Sidebar({ projects, selectedProjectId, onSelectProject, onCreate
       </div>
 
       <div className="sidebar-new-project">
-        {showForm ? (
+        {showProjectForm ? (
           <form className="new-project-form" onSubmit={handleSubmit}>
             <input
               className="sidebar-input"
@@ -69,7 +127,7 @@ export function Sidebar({ projects, selectedProjectId, onSelectProject, onCreate
               onChange={(e) => setForm({ ...form, gitCredential: e.target.value })}
             />
             <div className="new-project-form-actions">
-              <button type="button" className="btn-secondary" onClick={() => setShowForm(false)}>
+              <button type="button" className="btn-secondary" onClick={() => setShowProjectForm(false)}>
                 Cancel
               </button>
               <button type="submit" className="btn-primary" disabled={submitting}>
@@ -78,7 +136,7 @@ export function Sidebar({ projects, selectedProjectId, onSelectProject, onCreate
             </div>
           </form>
         ) : (
-          <button type="button" className="btn-new-project" onClick={() => setShowForm(true)}>
+          <button type="button" className="btn-new-project" onClick={() => setShowProjectForm(true)}>
             + New project
           </button>
         )}
@@ -89,14 +147,42 @@ export function Sidebar({ projects, selectedProjectId, onSelectProject, onCreate
           <div className="sidebar-empty">No projects yet</div>
         ) : (
           projects.map((project) => (
-            <button
-              key={project.id}
-              type="button"
-              className={`sidebar-project${project.id === selectedProjectId ? ' sidebar-project--active' : ''}`}
-              onClick={() => onSelectProject(project.id)}
-            >
-              {project.name}
-            </button>
+            <div key={project.id} className="sidebar-project-group">
+              <div className="sidebar-project-row">
+                <button
+                  type="button"
+                  className={`sidebar-project${project.id === selectedProjectId ? ' sidebar-project--active' : ''}`}
+                  onClick={() => onSelectProject(project.id)}
+                >
+                  {project.name}
+                </button>
+                {project.id === selectedProjectId && (
+                  <button
+                    type="button"
+                    className="sidebar-settings-button"
+                    title="Project settings"
+                    onClick={() => onOpenProjectSettings(project.id)}
+                  >
+                    ⚙
+                  </button>
+                )}
+              </div>
+              {project.id === selectedProjectId && (
+                <div className="sidebar-sessions">
+                  {sessions.map((session) => (
+                    <button
+                      key={session.id}
+                      type="button"
+                      className={`sidebar-session${session.id === selectedSessionId ? ' sidebar-session--active' : ''}`}
+                      onClick={() => onSelectSession(session.id)}
+                    >
+                      {session.title}
+                    </button>
+                  ))}
+                  <NewSessionRow onCreateSession={onCreateSession} />
+                </div>
+              )}
+            </div>
           ))
         )}
       </div>

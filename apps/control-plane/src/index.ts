@@ -7,7 +7,10 @@ import {
   ElectronToControlPlaneMessageSchema,
 } from '@crowcode/shared-types';
 import { Db } from './db.js';
+import { registerAgentRoutes } from './agents.js';
+import { registerIntegrationRoutes } from './integrations.js';
 import { registerProjectRoutes } from './projects.js';
+import { registerSessionRoutes } from './sessions.js';
 import { WsRelay } from './ws-relay.js';
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -38,8 +41,15 @@ async function main() {
 
   registerProjectRoutes(app, {
     db,
-    sandboxProvider,
     agentRuntimeImage: AGENT_RUNTIME_IMAGE,
+  });
+
+  registerAgentRoutes(app, { db });
+  registerIntegrationRoutes(app, { db });
+
+  registerSessionRoutes(app, {
+    db,
+    sandboxProvider,
     controlPlaneWsUrlForRuntime: SELF_WS_URL_FOR_RUNTIME,
     anthropicApiKey: requireEnv('ANTHROPIC_API_KEY'),
     s3: {
@@ -54,35 +64,35 @@ async function main() {
 
   app.register(async (instance) => {
     instance.get('/ws/electron', { websocket: true }, (socket) => {
-      let subscribedProjectId: string | null = null;
+      let subscribedSessionId: string | null = null;
 
       socket.on('message', (data: Buffer) => {
         const parsed = ElectronToControlPlaneMessageSchema.safeParse(JSON.parse(data.toString()));
         if (!parsed.success) return;
         const message = parsed.data;
         if (message.type === 'subscribe') {
-          subscribedProjectId = message.projectId;
-          relay.subscribeElectron(message.projectId, socket);
+          subscribedSessionId = message.sessionId;
+          relay.subscribeElectron(message.sessionId, socket);
         } else {
-          relay.handleElectronMessage(message.projectId, message);
+          relay.handleElectronMessage(message.sessionId, message);
         }
       });
 
-      void subscribedProjectId;
+      void subscribedSessionId;
     });
 
     instance.get('/ws/agent-runtime', { websocket: true }, (socket) => {
-      let registeredProjectId: string | null = null;
+      let registeredSessionId: string | null = null;
 
       socket.on('message', (data: Buffer) => {
         const parsed = AgentRuntimeToControlPlaneMessageSchema.safeParse(JSON.parse(data.toString()));
         if (!parsed.success) return;
         const message = parsed.data;
         if (message.type === 'register') {
-          registeredProjectId = message.projectId;
-          relay.registerAgentRuntime(message.projectId, socket);
-        } else if (registeredProjectId) {
-          relay.handleAgentRuntimeMessage(registeredProjectId, message);
+          registeredSessionId = message.sessionId;
+          relay.registerAgentRuntime(message.sessionId, socket);
+        } else if (registeredSessionId) {
+          relay.handleAgentRuntimeMessage(registeredSessionId, message);
         }
       });
     });
