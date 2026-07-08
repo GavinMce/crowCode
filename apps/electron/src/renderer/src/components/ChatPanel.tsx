@@ -11,10 +11,11 @@ interface Segment {
   userText?: string;
   events: SdkMessageEvent[];
   error?: string;
+  memoryFlushed: string[];
 }
 
 function newSegment(userText?: string): Segment {
-  return { id: crypto.randomUUID(), userText, events: [] };
+  return { id: crypto.randomUUID(), userText, events: [], memoryFlushed: [] };
 }
 
 export function ChatPanel({ config, session }: { config: CrowcodeConfig; session: SessionRow | null }) {
@@ -57,6 +58,12 @@ export function ChatPanel({ config, session }: { config: CrowcodeConfig; session
         });
       } else if (message.type === 'session_event' && message.event.payload.type === 'diff_snapshot') {
         setLatestDiff(message.event.payload.diff);
+      } else if (message.type === 'session_event' && message.event.payload.type === 'memory_flushed') {
+        const { key } = message.event.payload;
+        setSegments((prev) => {
+          const last = prev[prev.length - 1];
+          return [...prev.slice(0, -1), { ...last, memoryFlushed: [...last.memoryFlushed, key] }];
+        });
       } else if (message.type === 'error') {
         setSegments((prev) => {
           const last = prev[prev.length - 1];
@@ -131,6 +138,9 @@ export function ChatPanel({ config, session }: { config: CrowcodeConfig; session
                   {parseSdkEvents(segment.events).map((turn) => (
                     <TurnBlock key={turn.id} turn={turn} />
                   ))}
+                  {segment.memoryFlushed.length > 0 && (
+                    <div className="meta-turn">Memory updated · {segment.memoryFlushed.join(', ')}</div>
+                  )}
                   {segment.error && <div className="meta-turn meta-turn--error">{segment.error}</div>}
                 </div>
               ))}
