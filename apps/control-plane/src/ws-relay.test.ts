@@ -89,4 +89,44 @@ describe('WsRelay', () => {
 
     expect(electronSocket.sent).toEqual([{ type: 'session_event', event }]);
   });
+
+  it('delivers broadcastToProject only to sockets subscribed to that project', () => {
+    const relay = new WsRelay();
+    const projectId = '11111111-1111-1111-1111-111111111111';
+    const otherProjectId = '22222222-2222-2222-2222-222222222222';
+    const subscribed = fakeSocket();
+    const otherProject = fakeSocket();
+    relay.subscribeProject(projectId, subscribed);
+    relay.subscribeProject(otherProjectId, otherProject);
+
+    relay.broadcastToProject(projectId, {
+      type: 'agent_status',
+      projectId,
+      agentId: '00000000-0000-0000-0000-000000000000',
+      status: 'running',
+    });
+
+    expect(subscribed.sent).toEqual([
+      { type: 'agent_status', projectId, agentId: '00000000-0000-0000-0000-000000000000', status: 'running' },
+    ]);
+    expect(otherProject.sent).toEqual([]);
+  });
+
+  it('routes an agent_status message from agent-runtime to project subscribers, independent of session scope', () => {
+    const relay = new WsRelay();
+    const projectId = '11111111-1111-1111-1111-111111111111';
+    const projectSocket = fakeSocket();
+    relay.subscribeProject(projectId, projectSocket);
+
+    relay.handleAgentRuntimeMessage(sessionId, {
+      type: 'agent_status',
+      projectId,
+      agentId: '00000000-0000-0000-0000-000000000000',
+      status: 'idle',
+    });
+
+    expect(projectSocket.sent).toEqual([
+      { type: 'agent_status', projectId, agentId: '00000000-0000-0000-0000-000000000000', status: 'idle' },
+    ]);
+  });
 });

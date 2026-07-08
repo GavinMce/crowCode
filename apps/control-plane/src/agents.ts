@@ -1,10 +1,34 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import { CreateManagedAgentRequestSchema, type ManagedAgent } from '@crowcode/shared-types';
+import type { StorageProvider } from '@crowcode/storage';
+import { CreateManagedAgentRequestSchema, type ManagedAgent, type SdkMessageEvent } from '@crowcode/shared-types';
 import type { AgentRow, Db } from './db.js';
 
 export interface AgentsRouteConfig {
   db: Db;
+  storage: StorageProvider;
+}
+
+/**
+ * Reads a managed agent's persistent conversation directly from S3, without
+ * needing a live container, since the agent's identity/history outlives
+ * any one session's container lifetime.
+ *
+ * The SDK's own internal resume/session-store mechanism derives its
+ * "projectKey" from a *sanitized cwd*, not from anything crowCode passes
+ * in -- confirmed by hand (listed the actual keys written to the bucket).
+ * Every agent-runtime container uses the same fixed WORK_DIR
+ * ("/workspace/repo"), which always sanitizes to "-workspace-repo", so
+ * that's hardcoded here rather than guessed at. agentId is used bare (not
+ * prefixed) as the session id too, because `--resume` validates its value
+ * looks like a UUID or an existing session title -- confirmed by hand, a
+ * prefixed string was rejected outright, and agent.id is already a real
+ * UUID.
+ */
+const AGENT_RUNTIME_CWD_KEY = '-workspace-repo';
+
+function agentTranscriptKey(agentId: string): string {
+  return `sdk-session-store/${AGENT_RUNTIME_CWD_KEY}/${agentId}.jsonl`;
 }
 
 function rowToAgent(row: AgentRow): ManagedAgent {
@@ -55,5 +79,24 @@ export function registerAgentRoutes(app: FastifyInstance, config: AgentsRouteCon
     const { projectId, agentId } = request.params as { projectId: string; agentId: string };
     config.db.deleteAgent(agentId, projectId);
     return reply.status(204).send();
+  });
+
+  app.get('/projects/:projectId/agents/:agentId/conversation', async (request) => {
+    const { agentId } = request.params as { projectId: string; agentId: string };
+    const raw = await config.storage.get(agentTranscriptKey(agentId));
+    if (!raw) return { events: [] };
+
+    const events: SdkMessageEvent[] = raw
+      .toString('utf8')
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .map((line: string) => ({
+        type: 'sdk_message' as const,
+        parentToolUseId: null,
+        raw: JSON.parse(line) as unknown,
+      }));
+
+    return { events };
   });
 }

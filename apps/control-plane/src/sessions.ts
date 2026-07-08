@@ -56,6 +56,7 @@ export function registerSessionRoutes(app: FastifyInstance, config: SessionsRout
     config.db.insertSession(sessionRow);
 
     const managedAgents = config.db.listAgentsForProject(project.id).map((row) => ({
+      id: row.id,
       name: row.name,
       description: row.description,
       prompt: row.prompt,
