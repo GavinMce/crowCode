@@ -7,6 +7,7 @@ export interface CrowcodeConfig {
 
 const api = {
   getConfig: (): Promise<CrowcodeConfig> => ipcRenderer.invoke('crowcode:get-config'),
+  setConfig: (config: CrowcodeConfig): Promise<CrowcodeConfig> => ipcRenderer.invoke('crowcode:set-config', config),
 };
 
 contextBridge.exposeInMainWorld('crowcode', api);

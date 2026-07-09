@@ -307,12 +307,22 @@ textarea {
 
 .sidebar-header {
   padding: 16px 16px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .sidebar-title {
   font-size: 14px;
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+
+.settings-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  margin-bottom: -3px;
 }
 
 .sidebar-new-project {

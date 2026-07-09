@@ -16,6 +16,7 @@ interface SidebarProps {
   onCreateProject: (form: NewProjectForm) => Promise<boolean>;
   onCreateSession: (title: string) => Promise<boolean>;
   onOpenProjectSettings: (projectId: string) => void;
+  onOpenAppSettings: () => void;
 }
 
 const emptyForm: NewProjectForm = { name: '', repoUrl: '', gitCredential: '' };
@@ -80,6 +81,7 @@ export function Sidebar({
   onCreateProject,
   onCreateSession,
   onOpenProjectSettings,
+  onOpenAppSettings,
 }: SidebarProps) {
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [form, setForm] = useState<NewProjectForm>(emptyForm);
@@ -110,6 +112,9 @@ export function Sidebar({
     <aside className="sidebar">
       <div className="sidebar-header">
         <span className="sidebar-title">crowCode</span>
+        <button type="button" className="sidebar-settings-button" title="Settings" onClick={onOpenAppSettings}>
+          ⚙
+        </button>
       </div>
 
       <div className="sidebar-new-project">

@@ -1,8 +1,39 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'node:path';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-const CONTROL_PLANE_HTTP_URL = process.env.CONTROL_PLANE_HTTP_URL ?? 'http://localhost:8787';
-const CONTROL_PLANE_WS_URL = process.env.CONTROL_PLANE_WS_URL ?? 'ws://localhost:8787/ws/electron';
+interface CrowcodeConfig {
+  controlPlaneHttpUrl: string;
+  controlPlaneWsUrl: string;
+}
+
+const DEFAULT_CONFIG: CrowcodeConfig = {
+  controlPlaneHttpUrl: process.env.CONTROL_PLANE_HTTP_URL ?? 'http://localhost:8787',
+  controlPlaneWsUrl: process.env.CONTROL_PLANE_WS_URL ?? 'ws://localhost:8787/ws/electron',
+};
+
+function settingsPath(): string {
+  return join(app.getPath('userData'), 'settings.json');
+}
+
+/**
+ * Packaged builds have no .env -- persisted userData settings (set via the
+ * in-app settings screen) let a distributed executable point at any
+ * control-plane, not just localhost. Falls back to env vars / defaults
+ * (the dev-mode path) when nothing's been saved yet.
+ */
+function loadConfig(): CrowcodeConfig {
+  if (!existsSync(settingsPath())) return DEFAULT_CONFIG;
+  try {
+    return { ...DEFAULT_CONFIG, ...JSON.parse(readFileSync(settingsPath(), 'utf8')) };
+  } catch {
+    return DEFAULT_CONFIG;
+  }
+}
+
+function saveConfig(config: CrowcodeConfig): void {
+  writeFileSync(settingsPath(), JSON.stringify(config, null, 2));
+}
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -21,10 +52,12 @@ function createWindow(): void {
   }
 }
 
-ipcMain.handle('crowcode:get-config', () => ({
-  controlPlaneHttpUrl: CONTROL_PLANE_HTTP_URL,
-  controlPlaneWsUrl: CONTROL_PLANE_WS_URL,
-}));
+ipcMain.handle('crowcode:get-config', () => loadConfig());
+
+ipcMain.handle('crowcode:set-config', (_event, config: CrowcodeConfig) => {
+  saveConfig(config);
+  return config;
+});
 
 app.whenReady().then(() => {
   createWindow();
