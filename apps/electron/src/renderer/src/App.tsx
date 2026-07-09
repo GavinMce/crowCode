@@ -7,6 +7,7 @@ import { Sidebar } from './components/Sidebar.js';
 import { ChatPanel } from './components/ChatPanel.js';
 import { ProjectSettings } from './components/ProjectSettings.js';
 import { AgentConversationView } from './components/AgentConversationView.js';
+import { AppSettings } from './components/AppSettings.js';
 
 export function App() {
   const [config, setConfig] = useState<CrowcodeConfig | null>(null);
@@ -18,6 +19,7 @@ export function App() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
+  const [showAppSettings, setShowAppSettings] = useState(false);
   const projectWsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -117,6 +119,17 @@ export function App() {
     setSelectedSessionId(null);
   }
 
+  function handleConfigSaved(next: CrowcodeConfig) {
+    // A new control-plane means every id currently selected is meaningless.
+    setSelectedProjectId(null);
+    setSelectedSessionId(null);
+    setSelectedAgentId(null);
+    setProjects([]);
+    setSessions([]);
+    setAgents([]);
+    setConfig(next);
+  }
+
   const selectedSession = sessions.find((s) => s.id === selectedSessionId) ?? null;
   const selectedAgent = agents.find((a) => a.id === selectedAgentId) ?? null;
 
@@ -138,6 +151,7 @@ export function App() {
         onCreateProject={createProject}
         onCreateSession={createSession}
         onOpenProjectSettings={setSettingsProjectId}
+        onOpenAppSettings={() => setShowAppSettings(true)}
       />
       {selectedAgent ? (
         <AgentConversationView
@@ -151,6 +165,9 @@ export function App() {
       )}
       {settingsProjectId && (
         <ProjectSettings config={config} projectId={settingsProjectId} onClose={() => setSettingsProjectId(null)} />
+      )}
+      {showAppSettings && (
+        <AppSettings config={config} onSave={handleConfigSaved} onClose={() => setShowAppSettings(false)} />
       )}
     </div>
   );

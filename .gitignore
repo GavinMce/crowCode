@@ -10,6 +10,7 @@ out/
 .DS_Store
 *.tsbuildinfo
 apps/electron/out/
+apps/electron/release/
 apps/control-plane/*.sqlite
 apps/control-plane/*.sqlite-journal
 .vite/

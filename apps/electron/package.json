@@ -3,12 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "crowCode desktop client: an agentic code editor",
+  "author": {
+    "name": "crowCode",
+    "email": "gmcellistrem@gmail.com"
+  },
+  "homepage": "https://github.com/GavinMce/crowCode",
   "main": "./out/main/index.js",
   "scripts": {
     "build": "electron-vite build",
     "dev": "electron-vite dev",
     "start": "electron-vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "dist": "electron-vite build && electron-builder --publish never",
+    "dist:linux": "electron-vite build && electron-builder --linux --publish never",
+    "dist:mac": "electron-vite build && electron-builder --mac --publish never",
+    "dist:win": "electron-vite build && electron-builder --win --publish never"
   },
   "dependencies": {
     "@crowcode/shared-types": "workspace:*",
@@ -23,8 +33,31 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
     "electron-vite": "^2.3.0",
     "typescript": "^5.7.0",
     "vite": "^5.4.11"
+  },
+  "build": {
+    "appId": "dev.crowcode.app",
+    "productName": "crowCode",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Development"
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.developer-tools"
+    },
+    "win": {
+      "target": ["nsis"]
+    }
   }
 }
