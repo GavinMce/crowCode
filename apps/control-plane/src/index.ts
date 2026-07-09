@@ -25,10 +25,21 @@ function requireEnv(name: string): string {
   return value;
 }
 
+// Electron's packaged renderer loads via file://, sending an `Origin: null`
+// header rather than the http://localhost:5173 origin dev mode uses -- so
+// the CORS origin needs to support more than one exact string match once
+// this is reachable from somewhere other than a local dev renderer.
+function parseCorsOrigin(): string | boolean | string[] {
+  const raw = process.env.ELECTRON_RENDERER_URL_ORIGIN;
+  if (!raw) return 'http://localhost:5173';
+  if (raw === '*' || raw === 'true') return true;
+  return raw.split(',').map((entry) => entry.trim());
+}
+
 async function main() {
   const app = Fastify({ logger: true });
   await app.register(fastifyCors, {
-    origin: process.env.ELECTRON_RENDERER_URL_ORIGIN ?? 'http://localhost:5173',
+    origin: parseCorsOrigin(),
   });
   await app.register(fastifyWebsocket);
 
